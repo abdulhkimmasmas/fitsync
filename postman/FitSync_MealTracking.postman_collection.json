@@ -1,0 +1,1276 @@
+{
+  "info": {
+    "name": "FitSync - Meal Tracking",
+    "description": "Meal Tracking API (Laravel 12 + Sanctum).\n\nRun the folders in order with the Collection Runner (1 -> 6).\nSeed first: php artisan migrate:fresh --seed (demo accounts use DemoPassword!123).\nNote: otherAthleteId defaults to 2 (the seeded \"other\" athlete).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Day boundaries follow Asia/Damascus (config/meal_tracking.php)",
+          "const today = new Date().toLocaleDateString(\"en-CA\", { timeZone: \"Asia/Damascus\" });",
+          "pm.collectionVariables.set(\"today\", today);",
+          "// Start of today in Damascus (+03:00): never in the future, always on \"today\"",
+          "pm.collectionVariables.set(\"consumedAt\", today + \"T00:00:00+03:00\");",
+          "const f = new Date(Date.now() + 2 * 86400000);",
+          "pm.collectionVariables.set(\"futureAt\", f.toISOString().replace(/\\.\\d{3}Z$/, \"+00:00\"));"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8000/api"
+    },
+    {
+      "key": "athleteToken",
+      "value": ""
+    },
+    {
+      "key": "otherToken",
+      "value": ""
+    },
+    {
+      "key": "nutritionistToken",
+      "value": ""
+    },
+    {
+      "key": "athleteId",
+      "value": ""
+    },
+    {
+      "key": "otherAthleteId",
+      "value": "2"
+    },
+    {
+      "key": "logId",
+      "value": ""
+    },
+    {
+      "key": "today",
+      "value": ""
+    },
+    {
+      "key": "consumedAt",
+      "value": ""
+    },
+    {
+      "key": "futureAt",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Auth",
+      "item": [
+        {
+          "name": "Login - Athlete",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"athlete@example.test\",\n  \"password\": \"DemoPassword!123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 + token\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"role is athlete\", () => pm.expect(j.user.role).to.eql(\"athlete\"));",
+                  "pm.collectionVariables.set(\"athleteToken\", j.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - Other Athlete",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"other@example.test\",\n  \"password\": \"DemoPassword!123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 + token\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"role is athlete\", () => pm.expect(j.user.role).to.eql(\"athlete\"));",
+                  "pm.collectionVariables.set(\"otherToken\", j.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - Nutritionist",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"nutritionist@example.test\",\n  \"password\": \"DemoPassword!123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 + token\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"role is nutritionist\", () => pm.expect(j.user.role).to.eql(\"nutritionist\"));",
+                  "pm.collectionVariables.set(\"nutritionistToken\", j.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login - wrong password (401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"athlete@example.test\",\n  \"password\": \"wrong\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Meal Logs",
+      "item": [
+        {
+          "name": "Create meal log (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{athleteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/meal-logs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "meal-logs"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Grilled Chicken\",\n  \"meal_type\": \"lunch\",\n  \"calories\": 450.5,\n  \"consumed_at\": \"{{consumedAt}}\",\n  \"notes\": \"Created from Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 Created\", () => pm.response.to.have.status(201));",
+                  "const d = pm.response.json().data;",
+                  "pm.test(\"has id + name\", () => { pm.expect(d.meal_log_id).to.exist; pm.expect(d.name).to.eql(\"Grilled Chicken\"); });",
+                  "pm.collectionVariables.set(\"logId\", d.meal_log_id);",
+                  "pm.collectionVariables.set(\"athleteId\", d.athlete_id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List logs by date",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{athleteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/meal-logs?date={{today}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "meal-logs"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "{{today}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"data contains created log\", () => {",
+                  "  pm.expect(j.data).to.be.an(\"array\");",
+                  "  pm.expect(j.data.map(x => x.meal_log_id)).to.include(Number(pm.collectionVariables.get(\"logId\")));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update meal log - partial PATCH (200)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{athleteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/meal-logs/{{logId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "meal-logs",
+                "{{logId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"calories\": 520\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json().data;",
+                  "pm.test(\"calories updated, name kept\", () => { pm.expect(Number(d.calories)).to.eql(520); pm.expect(d.name).to.eql(\"Grilled Chicken\"); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Summary & Plan",
+      "item": [
+        {
+          "name": "Daily summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{athleteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/meal-logs/summary?date={{today}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "meal-logs",
+                "summary"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "{{today}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"summary fields\", () => {",
+                  "  [\"logged_meals_count\",\"logged_calories\",\"target_calories\",\"remaining_calories\",\"excess_calories\"].forEach(k => pm.expect(j).to.have.property(k));",
+                  "  pm.expect(j.logged_meals_count).to.be.at.least(1);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Planned meals",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{athleteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/planned-meals?date={{today}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "planned-meals"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "{{today}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"active plan with meals\", () => { const d = pm.response.json().data; pm.expect(d).to.be.an(\"array\").that.is.not.empty; pm.expect(d[0].meals).to.be.an(\"array\"); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Nutritionist",
+      "item": [
+        {
+          "name": "View athlete meal logs (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nutritionistToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/nutritionist/athletes/{{athleteId}}/meal-logs?date={{today}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nutritionist",
+                "athletes",
+                "{{athleteId}}",
+                "meal-logs"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "{{today}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"data array\", () => pm.expect(pm.response.json().data).to.be.an(\"array\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Athlete cannot use nutritionist endpoint (403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{otherToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/nutritionist/athletes/{{athleteId}}/meal-logs?date={{today}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nutritionist",
+                "athletes",
+                "{{athleteId}}",
+                "meal-logs"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "{{today}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Negative tests",
+      "item": [
+        {
+          "name": "No token (401)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/meal-logs?date={{today}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "meal-logs"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "{{today}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Missing date (422)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{athleteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/meal-logs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "meal-logs"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"422\", () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "athlete_id in body (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{athleteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/meal-logs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "meal-logs"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"athlete_id\": 999,\n  \"name\": \"X\",\n  \"meal_type\": \"lunch\",\n  \"calories\": 100,\n  \"consumed_at\": \"{{consumedAt}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"422 athlete_id\", () => { pm.response.to.have.status(422); pm.expect(pm.response.json().errors).to.have.property(\"athlete_id\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Future consumed_at (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{athleteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/meal-logs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "meal-logs"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"X\",\n  \"meal_type\": \"lunch\",\n  \"calories\": 100,\n  \"consumed_at\": \"{{futureAt}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"422 consumed_at\", () => { pm.response.to.have.status(422); pm.expect(pm.response.json().errors).to.have.property(\"consumed_at\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invalid meal_type (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{athleteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/meal-logs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "meal-logs"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"X\",\n  \"meal_type\": \"brunch\",\n  \"calories\": 100,\n  \"consumed_at\": \"{{consumedAt}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"422 meal_type\", () => { pm.response.to.have.status(422); pm.expect(pm.response.json().errors).to.have.property(\"meal_type\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Negative calories (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{athleteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/meal-logs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "meal-logs"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"X\",\n  \"meal_type\": \"lunch\",\n  \"calories\": -5,\n  \"consumed_at\": \"{{consumedAt}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"422 calories\", () => { pm.response.to.have.status(422); pm.expect(pm.response.json().errors).to.have.property(\"calories\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Other athlete updates my log (404)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{otherToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/meal-logs/{{logId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "meal-logs",
+                "{{logId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"calories\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Other athlete deletes my log (404)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{otherToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/meal-logs/{{logId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "meal-logs",
+                "{{logId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Nutritionist creates a log (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nutritionistToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/meal-logs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "meal-logs"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"X\",\n  \"meal_type\": \"lunch\",\n  \"calories\": 100,\n  \"consumed_at\": \"{{consumedAt}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Nutritionist views unrelated athlete (403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nutritionistToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/nutritionist/athletes/{{otherAthleteId}}/meal-logs?date={{today}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nutritionist",
+                "athletes",
+                "{{otherAthleteId}}",
+                "meal-logs"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "{{today}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6. Cleanup & Logout",
+      "item": [
+        {
+          "name": "Delete meal log (204)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{athleteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/meal-logs/{{logId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "meal-logs",
+                "{{logId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete again (404)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{athleteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/meal-logs/{{logId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "meal-logs",
+                "{{logId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout (204)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{athleteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "logout"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Token revoked after logout (401)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{athleteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/meal-logs?date={{today}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "meal-logs"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "{{today}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

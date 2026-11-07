@@ -37,14 +37,12 @@ class SaveMealLogRequest extends FormRequest
 
             'name' => [
                 $presence,
-                'required',
                 'string',
                 'max:150',
             ],
 
             'meal_type' => [
                 $presence,
-                'required',
                 Rule::in([
                     'breakfast',
                     'lunch',
@@ -55,7 +53,6 @@ class SaveMealLogRequest extends FormRequest
 
             'calories' => [
                 $presence,
-                'required',
                 'numeric',
                 'min:0',
                 'max:999999.99',
@@ -64,7 +61,6 @@ class SaveMealLogRequest extends FormRequest
 
             'consumed_at' => [
                 $presence,
-                'required',
                 'date_format:Y-m-d\TH:i:sP',
                 'before_or_equal:now',
             ],

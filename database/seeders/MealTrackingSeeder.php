@@ -90,7 +90,7 @@ class MealTrackingSeeder extends Seeder
             ]
         );
 
-        Meal::updateOrCreate(
+        $breakfast = Meal::updateOrCreate(
             [
                 'nutrition_plan_id' => $plan->nutrition_plan_id,
                 'name' => 'Demo Breakfast',
@@ -101,5 +101,54 @@ class MealTrackingSeeder extends Seeder
                 'calories' => 450,
             ]
         );
+
+        Meal::updateOrCreate(
+            [
+                'nutrition_plan_id' => $plan->nutrition_plan_id,
+                'name' => 'Demo Lunch',
+            ],
+            [
+                'meal_type' => 'lunch',
+                'description' => 'Example planned lunch.',
+                'calories' => 700,
+            ]
+        );
+
+        $logs = [
+            [
+                'meal_id' => $breakfast->meal_id,
+                'name' => 'Demo Breakfast',
+                'meal_type' => 'breakfast',
+                'calories' => 450,
+                'consumed_at' => $today->setTime(8, 0)->utc(),
+                'notes' => 'Seeded log.',
+            ],
+            [
+                'meal_id' => null,
+                'name' => 'Chicken Rice Bowl',
+                'meal_type' => 'lunch',
+                'calories' => 650,
+                'consumed_at' => $today->setTime(13, 30)->utc(),
+                'notes' => null,
+            ],
+            [
+                'meal_id' => null,
+                'name' => 'Protein Bar',
+                'meal_type' => 'snack',
+                'calories' => 220,
+                'consumed_at' => $today->setTime(17, 0)->utc(),
+                'notes' => null,
+            ],
+        ];
+
+        foreach ($logs as $log) {
+            $athlete->mealLogs()->updateOrCreate(
+                [
+                    'name' => $log['name'],
+                    'consumed_at' => $log['consumed_at'],
+                ],
+                $log
+            );
+        }
     }
 }

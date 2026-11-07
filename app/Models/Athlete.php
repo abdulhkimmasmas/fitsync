@@ -17,6 +17,11 @@ class Athlete extends Model
         return $this->belongsTo(User::class, 'user_id', 'id');
     }
 
+    public function mealLogs(): HasMany
+    {
+        return $this->hasMany(MealLog::class, 'athlete_id', 'athlete_id');
+    }
+
     public function nutritionPlans(): HasMany
     {
         return $this->hasMany(NutritionPlan::class, 'athlete_id', 'athlete_id');
