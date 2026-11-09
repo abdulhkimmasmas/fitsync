@@ -20,6 +20,8 @@ class MealDayRequest extends FormRequest
     {
         return [
             'date' => ['required', 'date_format:Y-m-d'],
+            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
+            'page' => ['sometimes', 'integer', 'min:1'],
         ];
     }
 }

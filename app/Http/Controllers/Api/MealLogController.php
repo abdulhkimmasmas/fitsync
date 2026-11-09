@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\MealDayRequest;
 use App\Http\Requests\SaveMealLogRequest;
+use App\Http\Resources\MealLogResource;
+use App\Http\Resources\NutritionPlanResource;
 use App\Models\Athlete;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
@@ -54,13 +56,21 @@ class MealLogController extends Controller
         $athlete = $this->athlete($request);
         $date = $request->validated('date');
 
-        return response()->json([
+        return $this->paginatedDay($request, $this->dayQuery($athlete, $date), [
             'date' => $date,
             'timezone' => config('meal_tracking.timezone'),
-            'data' => $this->dayQuery($athlete, $date)
-                ->orderBy('consumed_at')
-                ->get(),
         ]);
+    }
+
+    private function paginatedDay(MealDayRequest $request, $query, array $extra)
+    {
+        $logs = $query
+            ->orderBy('consumed_at')
+            ->orderBy('meal_log_id')
+            ->paginate($request->validated('per_page', 15))
+            ->withQueryString();
+
+        return MealLogResource::collection($logs)->additional($extra);
     }
 
     public function store(SaveMealLogRequest $request)
@@ -74,10 +84,10 @@ class MealLogController extends Controller
 
         $log = $athlete->mealLogs()->create($data);
 
-        return response()->json([
-            'message' => 'تم تسجيل الوجبة.',
-            'data' => $log,
-        ], 201);
+        return (new MealLogResource($log->fresh()))
+            ->additional(['message' => 'تم تسجيل الوجبة.'])
+            ->response()
+            ->setStatusCode(201);
     }
 
     public function update(SaveMealLogRequest $request, string $id)
@@ -98,10 +108,8 @@ class MealLogController extends Controller
 
         $log->update($data);
 
-        return response()->json([
-            'message' => 'تم تعديل السجل.',
-            'data' => $log->fresh(),
-        ]);
+        return (new MealLogResource($log->fresh()))
+            ->additional(['message' => 'تم تعديل السجل.']);
     }
 
     public function destroy(Request $request, string $id)
@@ -166,14 +174,14 @@ class MealLogController extends Controller
         $athlete = $this->athlete($request);
         $date = $request->validated('date');
 
-        return response()->json([
-            'data' => $athlete->nutritionPlans()
+        return NutritionPlanResource::collection(
+            $athlete->nutritionPlans()
                 ->with('meals')
                 ->where('is_active', true)
                 ->whereDate('start_date', '<=', $date)
                 ->whereDate('end_date', '>=', $date)
-                ->get(),
-        ]);
+                ->get()
+        );
     }
 
     public function nutritionistIndex(
@@ -189,15 +197,16 @@ class MealLogController extends Controller
 
         abort_unless($nutritionist, 403);
 
-        $athlete = Athlete::findOrFail($athleteId);
         $date = $request->validated('date');
 
         $today = CarbonImmutable::now(
             config('meal_tracking.timezone')
         )->toDateString();
 
+        // Permission is checked before the athlete is loaded, so an unrelated
+        // or non-existent athlete id gives the same 403 (no id enumeration).
         $allowed = $nutritionist->nutritionPlans()
-            ->where('athlete_id', $athlete->athlete_id)
+            ->where('athlete_id', $athleteId)
             ->where('is_active', true)
             ->whereDate('start_date', '<=', $today)
             ->whereDate('end_date', '>=', $today)
@@ -207,12 +216,12 @@ class MealLogController extends Controller
 
         abort_unless($allowed, 403);
 
-        return response()->json([
+        $athlete = Athlete::findOrFail($athleteId);
+
+        return $this->paginatedDay($request, $this->dayQuery($athlete, $date), [
             'athlete_id' => $athlete->athlete_id,
             'date' => $date,
-            'data' => $this->dayQuery($athlete, $date)
-                ->orderBy('consumed_at')
-                ->get(),
+            'timezone' => config('meal_tracking.timezone'),
         ]);
     }
 }

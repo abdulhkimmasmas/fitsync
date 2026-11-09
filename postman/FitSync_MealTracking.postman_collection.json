@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "FitSync - Meal Tracking",
-    "description": "Meal Tracking API (Laravel 12 + Sanctum).\n\nRun the folders in order with the Collection Runner (1 -> 6).\nSeed first: php artisan migrate:fresh --seed (demo accounts use DemoPassword!123).\nNote: otherAthleteId defaults to 2 (the seeded \"other\" athlete).",
+    "description": "Meal Tracking API (Laravel 12 + Sanctum).\n\nRun the folders in order with the Collection Runner (1 -> 7).\nSeed first: php artisan migrate:fresh --seed (demo accounts use DemoPassword!123).\nNote: otherAthleteId defaults to 2 (the seeded \"other\" athlete).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -15,6 +15,7 @@
           "pm.collectionVariables.set(\"today\", today);",
           "// Start of today in Damascus (+03:00): never in the future, always on \"today\"",
           "pm.collectionVariables.set(\"consumedAt\", today + \"T00:00:00+03:00\");",
+          "pm.collectionVariables.set(\"planEnd\", new Date(Date.now() + 30 * 86400000).toLocaleDateString(\"en-CA\", { timeZone: \"Asia/Damascus\" }));",
           "const f = new Date(Date.now() + 2 * 86400000);",
           "pm.collectionVariables.set(\"futureAt\", f.toISOString().replace(/\\.\\d{3}Z$/, \"+00:00\"));"
         ]
@@ -45,6 +46,18 @@
     {
       "key": "otherAthleteId",
       "value": "2"
+    },
+    {
+      "key": "planId",
+      "value": ""
+    },
+    {
+      "key": "mealId",
+      "value": ""
+    },
+    {
+      "key": "planEnd",
+      "value": ""
     },
     {
       "key": "logId",
@@ -628,7 +641,680 @@
       ]
     },
     {
-      "name": "5. Negative tests",
+      "name": "5. Nutritionist - Plans & Meals",
+      "item": [
+        {
+          "name": "List my athletes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nutritionistToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/nutritionist/athletes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nutritionist",
+                "athletes"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"has athlete_id + name\", () => { const d = pm.response.json().data; pm.expect(d).to.be.an(\"array\").that.is.not.empty; pm.expect(d[0]).to.have.all.keys(\"athlete_id\",\"name\",\"email\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create plan for other athlete (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nutritionistToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/nutritionist/plans",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nutritionist",
+                "plans"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"athlete_id\": \"{{otherAthleteId}}\",\n  \"title\": \"Cutting Plan\",\n  \"daily_calories_target\": 1800,\n  \"start_date\": \"{{today}}\",\n  \"end_date\": \"{{planEnd}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201\", () => pm.response.to.have.status(201));",
+                  "const d = pm.response.json().data;",
+                  "pm.test(\"plan fields\", () => { pm.expect(d.title).to.eql(\"Cutting Plan\"); pm.expect(d.is_active).to.eql(true); });",
+                  "pm.collectionVariables.set(\"planId\", d.nutrition_plan_id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create overlapping plan for demo athlete (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nutritionistToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/nutritionist/plans",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nutritionist",
+                "plans"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"athlete_id\": \"{{athleteId}}\",\n  \"title\": \"Overlap\",\n  \"daily_calories_target\": 1500,\n  \"start_date\": \"{{today}}\",\n  \"end_date\": \"{{planEnd}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"422 start_date\", () => { pm.response.to.have.status(422); pm.expect(pm.response.json().errors).to.have.property(\"start_date\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create plan - end before start (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nutritionistToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/nutritionist/plans",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nutritionist",
+                "plans"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"athlete_id\": \"{{otherAthleteId}}\",\n  \"title\": \"Bad dates\",\n  \"daily_calories_target\": 1500,\n  \"start_date\": \"{{planEnd}}\",\n  \"end_date\": \"{{today}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"422 end_date\", () => { pm.response.to.have.status(422); pm.expect(pm.response.json().errors).to.have.property(\"end_date\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Athlete creates a plan (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{athleteToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/nutritionist/plans",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nutritionist",
+                "plans"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"athlete_id\": \"{{otherAthleteId}}\",\n  \"title\": \"X\",\n  \"daily_calories_target\": 1,\n  \"start_date\": \"{{today}}\",\n  \"end_date\": \"{{planEnd}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List my plans (paginated)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nutritionistToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/nutritionist/plans",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nutritionist",
+                "plans"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"paginated\", () => { pm.expect(j).to.have.property(\"meta\"); pm.expect(j.data).to.be.an(\"array\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update plan - partial PATCH (200)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nutritionistToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/nutritionist/plans/{{planId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nutritionist",
+                "plans",
+                "{{planId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"daily_calories_target\": 2100\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"target updated, title kept\", () => { const d = pm.response.json().data; pm.expect(d.daily_calories_target).to.eql(2100); pm.expect(d.title).to.eql(\"Cutting Plan\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add planned meal to plan (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nutritionistToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/nutritionist/plans/{{planId}}/meals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nutritionist",
+                "plans",
+                "{{planId}}",
+                "meals"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Dinner Salad\",\n  \"meal_type\": \"dinner\",\n  \"calories\": 350.5,\n  \"description\": \"Light dinner\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201\", () => pm.response.to.have.status(201));",
+                  "const d = pm.response.json().data;",
+                  "pm.test(\"meal belongs to plan\", () => pm.expect(d.nutrition_plan_id).to.eql(Number(pm.collectionVariables.get(\"planId\"))));",
+                  "pm.collectionVariables.set(\"mealId\", d.meal_id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add meal - invalid type (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nutritionistToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/nutritionist/plans/{{planId}}/meals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nutritionist",
+                "plans",
+                "{{planId}}",
+                "meals"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"X\",\n  \"meal_type\": \"brunch\",\n  \"calories\": 100\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"422 meal_type\", () => { pm.response.to.have.status(422); pm.expect(pm.response.json().errors).to.have.property(\"meal_type\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update planned meal (200)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nutritionistToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/nutritionist/meals/{{mealId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nutritionist",
+                "meals",
+                "{{mealId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"calories\": 400\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"calories updated\", () => pm.expect(pm.response.json().data.calories).to.eql(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Show plan with meals (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nutritionistToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/nutritionist/plans/{{planId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nutritionist",
+                "plans",
+                "{{planId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"contains the meal\", () => pm.expect(pm.response.json().data.meals.map(m => m.meal_id)).to.include(Number(pm.collectionVariables.get(\"mealId\"))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete planned meal (204)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nutritionistToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/nutritionist/meals/{{mealId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nutritionist",
+                "meals",
+                "{{mealId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete plan (204)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nutritionistToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/nutritionist/plans/{{planId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nutritionist",
+                "plans",
+                "{{planId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Show deleted plan (404)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{nutritionistToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/nutritionist/plans/{{planId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nutritionist",
+                "plans",
+                "{{planId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6. Negative tests",
       "item": [
         {
           "name": "No token (401)",
@@ -1100,7 +1786,7 @@
       ]
     },
     {
-      "name": "6. Cleanup & Logout",
+      "name": "7. Cleanup & Logout",
       "item": [
         {
           "name": "Delete meal log (204)",
